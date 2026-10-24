@@ -4,16 +4,16 @@
 #define VAR_L A1
 #define VAR_R A2
 //핀 번호 지정
-const int LED[] = { 6, 7, 8, 12 };
-const int RGB[] = { 11, 5, 3 }; //Red 11, Green 5, Blue 3
+const int LED[] = { 12, 8, 7, 6 };
+const int RGB[] = { 11, 5, 3 };  //Red 11, Green 5, Blue 3
 
 #define LED_NUM 4
 #define RGB_NUM 3
 #define BLINK_MS 500
 
 //state (설정값은 OFF 모드에서도 유지되므로 별도 백업이 필요 없음)
-int ledVal[4] = { 0, 0, 0, 0 }; //0 / 1
-int rgbVal[3] = { 0, 0, 0 };    //0 ~ 255
+int ledVal[4] = { 0, 0, 0, 0 };  //0 / 1
+int rgbVal[3] = { 0, 0, 0 };     //0 ~ 255
 
 int mode = 0;            //버튼1: 0 = OFF, 1 = ON, 2 = 점멸
 boolean useRGB = false;  //버튼2: false = LED, true = RGB
@@ -59,28 +59,28 @@ void loop() {
       mode = 0;
     }
     printStatus();
-    delay(50);                  //버튼 떨림 방지
-    value1 = digitalRead(BTN1); //딜레이 후 상태 다시 읽기
+    delay(50);                   //버튼 떨림 방지
+    value1 = digitalRead(BTN1);  //딜레이 후 상태 다시 읽기
   }
   //버튼2: LED <-> RGB
   if (value2 == 0 && prev_value2 == 1) {
     useRGB = !useRGB;
     printStatus();
-    delay(50);                  //버튼 떨림 방지
+    delay(50);  //버튼 떨림 방지
     value2 = digitalRead(BTN2);
   }
   prev_value1 = value1;
   prev_value2 = value2;
 
   switch (mode) {
-    case 0: //OFF: 설정값은 유지하고 출력만 끈다
+    case 0:  //OFF: 설정값은 유지하고 출력만 끈다
       applyOutputs(false);
       break;
-    case 1: //ON
+    case 1:  //ON
       updateControl();
       applyOutputs(true);
       break;
-    case 2: //점멸: ON과 같고 출력만 milli()에 따라 깜빡임
+    case 2:  //점멸: ON과 같고 출력만 milli()에 따라 깜빡임
       updateControl();
       applyOutputs(milli());
       break;
@@ -94,14 +94,12 @@ void updateControl() {
   int slot, val;
 
   if (useRGB) {
-    slot = map(l, 0, 1023, 0, RGB_NUM);           //3구간
-    slot = constrain(slot, 0, RGB_NUM - 1);
+    slot = getSlot(l, RGB_NUM);  //3구간
     val = map(r, 0, 1023, 0, 255);
     rgbVal[slot] = val;
   } else {
-    slot = map(l, 0, 1023, 0, LED_NUM);           //4구간
-    slot = constrain(slot, 0, LED_NUM - 1);
-    val = map(r, 0, 1023, 0, 2);                  //0 / 1
+    slot = getSlot(l, LED_NUM);   //4구간
+    val = map(r, 0, 1023, 0, 2);  //0 / 1
     val = constrain(val, 0, 1);
     ledVal[slot] = val;
   }
@@ -119,6 +117,13 @@ void updateControl() {
     lastSlot = slot;
     lastVal = val;
   }
+}
+
+//가변저항 값(value)을 num개 구간으로 나눠서 구간 번호(0 ~ num-1) 리턴
+int getSlot(int value, int num) {
+  int slot = map(value, 0, 1023, 0, num);
+  slot = constrain(slot, 0, num - 1);
+  return slot;
 }
 
 //상태 배열을 실제 핀에 출력

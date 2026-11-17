@@ -1,11 +1,13 @@
-//11주차: p5.js -> 아두이노 (하늘 밝기와 시간대를 송신)
+//12주차: 아두이노 <-> p5.js (가변저항 2개로 달 이동, 버튼으로 별똥별 / 하늘 밝기와 시간대 송신)
 let port = new p5.WebSerial();  // 시리얼 통신을 위한 객체 생성
 
 let num = 50;
 let starX = [];
 let starY = [];
-let theta = 0;
+let value1 = 0, value2 = 0;  // 가변저항1, 2 수신값 (0~1023)
 
+let sunX = 0;
+let sunY = 0;
 let moonX = 0;
 let moonY = 0;
 
@@ -22,11 +24,12 @@ function setup() {
   port.getPorts();                       // 포트 사용 가능 여부 확인
   port.on('noport', makePortButton);     // 기존 선택한 포트가 없으면 makePortButton() 호출
   port.on('portavailable', openPort);    // 사용 가능한 포트가 있으면 openPort() 자동 호출
+  port.on('data', serialEvent);          // 수신값이 있으면 serialEvent() 자동 호출
 }
 
 function draw() {
-  updateTime();
-  let sunHeight = sin(theta);
+  moveSunAndMoon();
+  let sunHeight = (300 - sunY) / 250;    // 태양 높이 (-1 ~ 1)
   let light = getLight(sunHeight);
   let phase = getPhase(sunHeight);
 
@@ -39,12 +42,17 @@ function draw() {
   sendData(light, phase);
 }
 
-function updateTime() {
-  if (mouseIsPressed) {
-    theta += 0.03;
+// 가변저항1: 달의 좌우 위치, 가변저항2: 절반 이상이면 달이 지평선 위(밤), 아니면 아래(낮)
+function moveSunAndMoon() {
+  let a = map(value1, 0, 1023, PI, 0);   // 왼쪽 끝 PI, 오른쪽 끝 0
+  moonX = width / 2 + 250 * cos(a);
+  if (value2 >= 512) {
+    moonY = 300 - 250 * sin(a);          // 지평선 위
   } else {
-    theta += 0.005;
+    moonY = 300 + 250 * sin(a);          // 지평선 아래
   }
+  sunX = width - moonX;                  // 태양은 달의 반대편
+  sunY = 600 - moonY;
 }
 
 function getLight(h) {
@@ -96,11 +104,6 @@ function drawStars(light) {
 }
 
 function drawSunAndMoon() {
-  let sunX = width / 2 - 250 * cos(theta);
-  let sunY = 300 - 250 * sin(theta);
-  moonX = width / 2 + 250 * cos(theta);
-  moonY = 300 + 250 * sin(theta);
-
   fill(255, 200, 50);
   ellipse(sunX, sunY, 50, 50);
   fill(240, 240, 210);
@@ -160,6 +163,20 @@ function keyPressed() {
     case "m":
       launchMeteor(random(width), random(100));
       break;
+  }
+}
+
+// 아두이노에서 수신 (12주차): "가변저항1,가변저항2,pressed"
+function serialEvent() {
+  let str = port.readLine();             // 개행까지의 수신 문자열 읽기
+  if (!str) return;                      // 입력 문자열이 없으면 함수 빠져나가기
+  let s = str.trim();                    // 시작과 끝에 붙은 공백 삭제 
+  let value = s.split(",");              // 콤마로 구분된 문자열을 value 배열에 저장 
+  if (value.length != 3) return;         // 값이 3개가 아니면 무시
+  value1 = float(value[0]);              // 가변저항1 (실수로 변환)
+  value2 = float(value[1]);              // 가변저항2
+  if (value[2] === "pressed") {          // 버튼을 누른 순간
+    launchMeteor(random(width), random(100));
   }
 }
 

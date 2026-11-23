@@ -1,5 +1,6 @@
-//12주차: 아두이노 <-> p5.js (가변저항 2개로 달 이동, 버튼으로 별똥별 / 하늘 밝기와 시간대 송신)
+//13주차: 아두이노 -> p5.js 핸드셰이킹 (센서값을 받을 때마다 'B'로 다음 값 요청)
 let port = new p5.WebSerial();  // 시리얼 통신을 위한 객체 생성
+let connected = false;          // 아두이노의 시작신호를 받았는지
 
 let num = 50;
 let starX = [];
@@ -39,7 +40,9 @@ function draw() {
   drawMeteor();
   drawGround();
   drawText(phase);
-  sendData(light, phase);
+  if (connected) {                       // 시작신호를 받은 뒤부터 송신
+    sendData(light, phase);
+  }
 }
 
 // 가변저항1: 달의 좌우 위치, 가변저항2: 절반 이상이면 달이 지평선 위(밤), 아니면 아래(낮)
@@ -166,13 +169,15 @@ function keyPressed() {
   }
 }
 
-// 아두이노에서 수신 (12주차): "가변저항1,가변저항2,pressed"
+// 아두이노에서 수신 (13주차): 시작신호 "A" 또는 "가변저항1,가변저항2,pressed"
 function serialEvent() {
   let str = port.readLine();             // 개행까지의 수신 문자열 읽기
   if (!str) return;                      // 입력 문자열이 없으면 함수 빠져나가기
-  let s = str.trim();                    // 시작과 끝에 붙은 공백 삭제 
-  let value = s.split(",");              // 콤마로 구분된 문자열을 value 배열에 저장 
-  if (value.length != 3) return;         // 값이 3개가 아니면 무시
+  let s = str.trim();                    // 시작과 끝에 붙은 공백 삭제 (p5.js 2.x는 trim() 없음)
+  let value = s.split(",");              // 콤마로 구분된 문자열을 value 배열에 저장 (2.x는 split() 없음)
+  port.write('B');                       // 송신: 다음 센서값 요청 (핸드셰이킹)
+  connected = true;                      // 한 줄이라도 받았으니 통신 시작
+  if (value.length != 3) return;         // 시작신호('A')인 경우 함수 벗어나기
   value1 = float(value[0]);              // 가변저항1 (실수로 변환)
   value2 = float(value[1]);              // 가변저항2
   if (value[2] === "pressed") {          // 버튼을 누른 순간
